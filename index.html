@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>ToDo List with Database</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="css/jquery.mobile.min.css">
+<script src="cordova.js"></script>
+<script src="js/jquery.min.js"></script>
+<script src="js/jquery.mobile.min.js"></script>
+
+<style>
+body {
+	color: #222;
+	font: 14px Arial;
+}
+body a {
+	color: #3D5C9D;
+	text-decoration: none;
+}
+
+#todo {
+	font-size: 18px;
+	font-weight: bold;
+}
+#todoItems {
+	font-size: 18px;
+}
+</style>
+
+<script>
+      var dbdemo = {};
+      dbdemo.webdb = {};
+      dbdemo.webdb.db = null;
+      
+      dbdemo.webdb.open = function() {
+        var dbSize = 5 * 1024 * 1024; // 5MB
+        dbdemo.webdb.db = openDatabase("Todo", "1.0", "Todo manager", dbSize);
+      }
+      
+      dbdemo.webdb.createTable = function() {
+        var db = dbdemo.webdb.db;
+        db.transaction(function(tx) {
+          tx.executeSql("CREATE TABLE IF NOT EXISTS todo(ID INTEGER PRIMARY KEY ASC, todo TEXT, added_on DATETIME)", []);
+        });
+      }
+      
+      dbdemo.webdb.addTodo = function(todoText) {
+        var db = dbdemo.webdb.db;
+        db.transaction(function(tx){
+          var addedOn = new Date();
+          tx.executeSql("INSERT INTO todo(todo, added_on) VALUES (?,?)",
+              [todoText, addedOn],
+              dbdemo.webdb.onSuccess,
+              dbdemo.webdb.onError);
+         });
+      }
+      
+      dbdemo.webdb.onError = function(tx, e) {
+        alert("There has been an error: " + e.message);
+      }
+      
+      dbdemo.webdb.onSuccess = function(tx, r) {
+        // re-render the data.
+        dbdemo.webdb.getAllTodoItems(loadTodoItems);
+      }
+      
+      
+      dbdemo.webdb.getAllTodoItems = function(renderFunc) {
+        var db = dbdemo.webdb.db;
+        db.transaction(function(tx) {
+          tx.executeSql("SELECT * FROM todo", [], renderFunc,
+              dbdemo.webdb.onError);
+        });
+      }
+      
+      dbdemo.webdb.deleteTodo = function(id) {
+        var db = dbdemo.webdb.db;
+        db.transaction(function(tx){
+          tx.executeSql("DELETE FROM todo WHERE ID=?", [id],
+              dbdemo.webdb.onSuccess,
+              dbdemo.webdb.onError);
+          });
+      }
+      
+      function loadTodoItems(tx, rs) {
+        var rowOutput = "";
+        var todoItems = document.getElementById("todoItems");
+        for (var i=0; i < rs.rows.length; i++) {
+          rowOutput += renderTodo(rs.rows.item(i));
+        }
+      
+        todoItems.innerHTML = rowOutput;
+      }
+      
+      function renderTodo(row) {
+        return "<li>" + row.todo  + " [<a href='javascript:void(0);'  onclick='dbdemo.webdb.deleteTodo(" + row.ID +");'>Delete</a>]</li>";
+      }
+      
+      function init() {
+        dbdemo.webdb.open();
+        dbdemo.webdb.createTable();
+        dbdemo.webdb.getAllTodoItems(loadTodoItems);
+      }
+      
+      function addTodo() {
+        var todo = document.getElementById("todo");
+        dbdemo.webdb.addTodo(todo.value);
+        todo.value = "";
+      }
+</script>
+
+</head>
+
+<body onLoad="init();">
+
+<div data-role="page" data-theme="a">
+
+  <div data-role="header" data-fullscreen="true">
+    <h1>TO DO List</h1>
+  </div>
+
+  <div data-role=content>
+    <ul id="todoItems">
+    </ul>
+    <form type="post" onSubmit="addTodo(); return false;">
+      <input type="text" id="todo" name="todo" placeholder="Enter a TO DO Task" style="width: 200px;" />
+      <input type="submit" value="Click to Add"/>
+    </form>
+  </div>
+
+  <div data-role="footer" data-position="fixed" data-fullscreen="true">
+    <h4>Rick Mitchell</h4>
+  </div>
+
+</div>
+
+</body>
+</html>
